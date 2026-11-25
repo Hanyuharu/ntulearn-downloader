@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NTULearn 课件下载器</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="Logo" class="brand-icon" width="36" height="36" />
+        <div class="brand-text">
+          <h1>NTULearn 课件下载器</h1>
+          <p class="brand-sub">批量扫描并归档课程课件、图文笔记与非视频外链</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="loginStatusBadge" class="status-badge status-checking" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="loginStatusText">正在检查登录状态...</span>
+        </div>
+        <button id="openNtulBtn" type="button" class="btn btn-outline">
+          打开 NTULearn
+        </button>
+        <button id="refreshLoginBtn" type="button" class="btn btn-secondary">
+          刷新登录状态
+        </button>
+      </div>
+    </header>
+
+    <!-- Tip Banner -->
+    <section id="tipBanner" class="tip-banner" role="note">
+      <div class="tip-banner-icon" aria-hidden="true">!</div>
+      <div class="tip-banner-body">
+        <strong>批量下载提示：</strong>
+        如果 Chrome / Edge 浏览器开启了
+        <span class="tip-highlight">「下载前询问每个文件的保存位置」</span>，批量下载时会频繁弹出保存对话框。建议先在浏览器
+        <code>设置 → 下载内容</code> 中临时关闭该选项，下载完成后再重新开启。
+      </div>
+      <button id="dismissTipBtn" type="button" class="tip-close" title="关闭提示" aria-label="关闭提示">&times;</button>
+    </section>
+
+    <!-- Settings Card -->
+    <section class="card settings-card" aria-label="下载设置">
+      <div class="settings-top-row">
+        <div class="field-group field-root-folder">
+          <label for="rootFolderInput">保存根目录（位于默认下载文件夹下）</label>
+          <div class="input-with-hint">
+            <input
+              id="rootFolderInput"
+              type="text"
+              value="NTUlearn"
+              placeholder="例如：NTUlearn"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span id="pathPreviewHint" class="path-hint">默认下载目录 / NTUlearn / ...</span>
+          </div>
+        </div>
+
+        <div class="field-group field-concurrency">
+          <label for="concurrencySelect">并发下载数</label>
+          <select id="concurrencySelect">
+            <option value="1">1（最稳妥）</option>
+            <option value="2">2（均衡）</option>
+            <option value="3" selected>3（推荐）</option>
+            <option value="5">5（较快）</option>
+          </select>
+        </div>
+
+        <div class="field-group field-history">
+          <label>增量同步记录</label>
+          <div class="history-control">
+            <span id="historyCountBadge" class="history-count">已记录 0 项</span>
+            <button id="clearHistoryBtn" type="button" class="btn btn-danger-ghost btn-sm">
+              清除下载记录
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-toggles">
+        <label class="checkbox-pill">
+          <input id="optOrderPrefix" type="checkbox" checked />
+          <span>开启网页顺序编号 (<code>01_...</code>)</span>
+        </label>
+        <label class="checkbox-pill">
+          <input id="optSkipDownloaded" type="checkbox" checked />
+          <span>跳过已下载记录 (增量同步)</span>
+        </label>
+        <label class="checkbox-pill">
+          <input id="optIncludeNotes" type="checkbox" checked />
+          <span>保存图文页面正文 (<code>_notes.html</code>)</span>
+        </label>
+        <label class="checkbox-pill">
+          <input id="optIncludeLinks" type="checkbox" checked />
+          <span>保存非视频外链 (<code>_links.txt</code>)</span>
+        </label>
+        <label class="checkbox-pill">
+          <input id="optIncludeAssignments" type="checkbox" checked />
+          <span>包含作业区附件</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Main Two-Column Workspace -->
+    <main class="workspace">
+      <!-- Left Column: Courses -->
+      <section class="card panel-courses" aria-label="课程列表">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>选择课程</h2>
+            <span id="courseSelectionBadge" class="pill pill-navy">已选 0 / 0</span>
+          </div>
+          <button id="reloadCoursesBtn" type="button" class="btn btn-ghost btn-sm">
+            刷新课程
+          </button>
+        </div>
+
+        <div class="course-filters">
+          <input
+            id="courseSearchInput"
+            type="search"
+            class="search-input"
+            placeholder="搜索课程代码或名称..."
+            autocomplete="off"
+          />
+          <select id="termFilterSelect" class="term-select" aria-label="按学期筛选">
+            <option value="__ALL__">全部学期</option>
+          </select>
+        </div>
+
+        <div class="course-bulk-actions">
+          <button id="selectAllCoursesBtn" type="button" class="btn btn-ghost btn-sm">全选当前列表</button>
+          <button id="deselectAllCoursesBtn" type="button" class="btn btn-ghost btn-sm">取消全选</button>
+          <span id="courseFilterInfo" class="muted-text"></span>
+        </div>
+
+        <div id="courseListContainer" class="course-list" role="list">
+          <div class="empty-state">
+            <p>正在加载课程列表...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Scan, Preview & Download -->
+      <section class="card panel-workbench" aria-label="扫描预览与下载">
+        <!-- Action Bar -->
+        <div class="action-bar">
+          <div class="action-group">
+            <button id="scanBtn" type="button" class="btn btn-primary" disabled>
+              1. 扫描所选课程
+            </button>
+            <button id="stopScanBtn" type="button" class="btn btn-danger hidden">
+              停止扫描
+            </button>
+
+            <button id="downloadBtn" type="button" class="btn btn-accent" disabled>
+              2. 开始下载到默认下载目录
+            </button>
+            <button id="stopDownloadBtn" type="button" class="btn btn-danger hidden">
+              停止下载
+            </button>
+
+            <button id="retryFailedBtn" type="button" class="btn btn-warning hidden">
+              重试失败项 (<span id="retryFailedCount">0</span>)
+            </button>
+          </div>
+          <div id="currentActionStatus" class="action-status-text"></div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" aria-label="扫描统计">
+          <div class="stat-tile">
+            <span class="stat-label">已扫课程</span>
+            <span id="statCourses" class="stat-value">0</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">课件文件</span>
+            <span id="statFiles" class="stat-value">0</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">图文笔记</span>
+            <span id="statNotes" class="stat-value">0</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">外链清单</span>
+            <span id="statLinks" class="stat-value">0</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">跳过视频</span>
+            <span id="statSkippedVideos" class="stat-value">0</span>
+          </div>
+          <div class="stat-tile stat-tile-muted">
+            <span class="stat-label">历史将跳过</span>
+            <span id="statWillSkip" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <!-- Preview Tree Section -->
+        <div class="preview-section">
+          <div class="preview-toolbar">
+            <div class="preview-toolbar-left">
+              <h3>下载内容预览</h3>
+              <span id="previewCountBadge" class="pill pill-slate">0 项待下载</span>
+            </div>
+            <div class="preview-toolbar-right">
+              <div class="type-filter-group" role="group" aria-label="按类型筛选">
+                <button type="button" class="chip chip-active" data-type-filter="all">全部</button>
+                <button type="button" class="chip" data-type-filter="file">文件</button>
+                <button type="button" class="chip" data-type-filter="notes">笔记</button>
+                <button type="button" class="chip" data-type-filter="links">外链</button>
+              </div>
+              <input
+                id="previewSearchInput"
+                type="search"
+                class="search-input search-input-sm"
+                placeholder="筛选文件名或路径..."
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="preview-subbar">
+            <div class="preview-subbar-actions">
+              <button id="selectAllTasksBtn" type="button" class="btn btn-ghost btn-xs" disabled>全选预览项</button>
+              <button id="deselectAllTasksBtn" type="button" class="btn btn-ghost btn-xs" disabled>取消全选</button>
+              <button id="toggleCollapseAllBtn" type="button" class="btn btn-ghost btn-xs" disabled>折叠全部</button>
+            </div>
+            <span id="previewSelectedHint" class="muted-text">请先在左侧选择课程并点击「1. 扫描所选课程」</span>
+          </div>
+
+          <div id="previewContainer" class="preview-tree">
+            <div class="empty-state">
+              <p>尚未扫描课程。</p>
+              <p class="empty-sub">在左侧勾选要归档的课程后，点击「1. 扫描所选课程」即可预览完整目录结构与文件清单。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress & Log Section -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <div class="progress-counters">
+              <span class="counter-item">进度：<strong id="progCompleted">0</strong> / <strong id="progTotal">0</strong></span>
+              <span class="counter-item counter-success">新下载：<strong id="progDownloaded">0</strong></span>
+              <span class="counter-item counter-skip">已跳过：<strong id="progSkipped">0</strong></span>
+              <span class="counter-item counter-error">失败：<strong id="progFailed">0</strong></span>
+            </div>
+            <span id="progPercent" class="progress-percent">0%</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBarTrack">
+            <div id="progressBarFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="log-section">
+          <div class="log-header">
+            <h3>运行日志</h3>
+            <button id="clearLogBtn" type="button" class="btn btn-ghost btn-xs">清空日志</button>
+          </div>
+          <div id="logContainer" class="log-box" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

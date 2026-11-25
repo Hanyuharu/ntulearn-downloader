@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "NTULearn 课件下载器",
+  "version": "1.0.0",
+  "description": "批量扫描并下载 NTULearn 课程课件、图文笔记与非视频外链，自动按课程与网页顺序归档至本地目录。",
+  "permissions": [
+    "downloads",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://ntulearn.ntu.edu.sg/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "打开 NTULearn 课件下载器",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
